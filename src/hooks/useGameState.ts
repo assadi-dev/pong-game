@@ -51,7 +51,7 @@ export function useGameState() {
     const tick = useCallback((dt: number) => {
         if (state.phase === 'scored') {
             scoredTimerRef.current += dt
-            if (scoredTimerRef.current >= SCORED_FREEZE_DURATION / 60) {
+            if (scoredTimerRef.current >= SCORED_FREEZE_DURATION) {
                 scoredTimerRef.current = 0
                 dispatch({ type: 'RESUME_AFTER_POINT' })
             }

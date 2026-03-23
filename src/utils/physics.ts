@@ -80,7 +80,7 @@ export function accelerateBall(ball: Ball): Ball {
  * Déplace une raquette vers le haut (direction = -1) ou le bas (direction = 1).
  * Empêche la raquette de sortir du canvas.
  */
-export function movePaddle(paddle: Paddle, direction: -1 | 0 | 1, dt: number): Paddle {
+export function movePaddle(paddle: Paddle, direction: number, dt: number): Paddle {
     if (direction === 0) return paddle
 
     const newY = paddle.position.y + direction * PADDLE_SPEED * dt

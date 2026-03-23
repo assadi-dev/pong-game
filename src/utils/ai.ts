@@ -12,15 +12,15 @@ const REACTION_SPEED: Record<Difficulty, number> = {
 
 // Marge d'erreur en px : l'IA vise le centre ± cette valeur
 const AIM_ERROR: Record<Difficulty, number> = {
-    easy: 55,
-    medium: 25,
+    easy: 80,
+    medium: 40,
     hard: 5,
 }
 
 // Délai de réaction en secondes : l'IA ignore la balle pendant ce temps
 const REACTION_DELAY: Record<Difficulty, number> = {
-    easy: 0.35,
-    medium: 0.15,
+    easy: 0.5,
+    medium: 0.25,
     hard: 0.0,
 }
 
@@ -47,14 +47,14 @@ export function resetAI() {
 
 /**
  * Calcule la direction de la raquette droite contrôlée par l'IA.
- * Retourne -1 (haut), 0 (stop), 1 (bas).
+ * Retourne une valeur entre -1 et 1.
  */
 export function computeAIDirection(
     paddle: Paddle,
     ball: Ball,
     dt: number,
     difficulty: Difficulty,
-): -1 | 0 | 1 {
+): number {
     const delay = REACTION_DELAY[difficulty]
 
     // Accumule le temps de réaction
@@ -66,7 +66,7 @@ export function computeAIDirection(
         aiState.errorOffset = (Math.random() * 2 - 1) * AIM_ERROR[difficulty]
 
         // Prédit la position Y de la balle quand elle arrivera à la raquette
-        aiState.targetY = predictBallY(ball) + aiState.errorOffset
+        aiState.targetY = predictBallY(ball, difficulty) + aiState.errorOffset
     }
 
     const paddleCenterY = paddle.position.y + paddle.height / 2
@@ -75,19 +75,28 @@ export function computeAIDirection(
     const diff = aiState.targetY - paddleCenterY
 
     if (Math.abs(diff) < deadZone) return 0
-    return diff < 0 ? -1 : 1
+    const direction = diff < 0 ? -1 : 1
+
+    // Applique la vitesse de réaction
+    return direction * REACTION_SPEED[difficulty]
 }
 
 /**
  * Prédit la position Y de la balle quand elle atteindra le bord droit,
  * en simulant les rebonds sur les murs haut et bas.
  */
-function predictBallY(ball: Ball): number {
+function predictBallY(ball: Ball, difficulty: Difficulty): number {
     const { x, y } = ball.position
     const { x: vx, y: vy } = ball.velocity
 
     // La balle s'éloigne → rester au centre
     if (vx <= 0) return CANVAS_HEIGHT / 2
+
+    // Facile : ne prédit que si la balle est déjà dans la moitié droite
+    if (difficulty === 'easy' && x < 400) return CANVAS_HEIGHT / 2
+
+    // Moyen : ne prédit que si la balle a passé le 1er quart
+    if (difficulty === 'medium' && x < 200) return CANVAS_HEIGHT / 2
 
     // Distance horizontale jusqu'au bord droit (approximatif)
     const targetX = 780

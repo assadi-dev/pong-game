@@ -6,12 +6,11 @@ import { directionLeft, directionRight } from './input'
 import { computeAIDirection, resetAI } from './ai'
 
 // Délai de freeze après un point (en secondes)
-const SCORED_FREEZE_DURATION = 1.0
 
-// Accumule le temps passé en phase 'scored'
-let scoredTimer = 0
+// Transition après un point handled in useGameState.ts
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
+
     switch (action.type) {
 
         case 'START_GAME':
@@ -83,7 +82,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
                     }
                 }
 
-                scoredTimer = 0
                 return {
                     ...state,
                     phase: 'scored',
@@ -96,16 +94,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             return { ...state, ball, paddleLeft, paddleRight }
         }
 
-        // ── Freeze après un point ─────────────────────────────────────────────────
+        // ── Transition après un point ─────────────────────────────────────────────
         case 'RESUME_AFTER_POINT': {
             if (state.phase !== 'scored') return state
-            scoredTimer += 1 / 60 // approximation, géré dans le composant
-            if (scoredTimer >= SCORED_FREEZE_DURATION) {
-                scoredTimer = 0
-                return { ...state, phase: 'playing' }
-            }
-            return state
+            return { ...state, phase: 'playing' }
         }
+
 
         default:
             return state
