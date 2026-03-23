@@ -4,9 +4,12 @@ import type { GameState } from '../types/game.types'
 type HUDProps = {
     state: GameState
     onPause: () => void
+    musicMuted: boolean
+    onMusicMute: () => void
+    onSettings: () => void
 }
 
-export function HUD({ state, onPause }: HUDProps) {
+export function HUD({ state, onPause, musicMuted, onMusicMute, onSettings }: HUDProps) {
     const { paddleLeft, paddleRight, phase } = state
 
     return (
@@ -32,25 +35,17 @@ export function HUD({ state, onPause }: HUDProps) {
             </div>
 
             {/* Bouton pause */}
-            <button
-                onClick={onPause}
-                style={{
-                    position: 'absolute',
-                    top: '12px',
-                    right: '14px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'rgba(255,255,255,0.25)',
-                    fontSize: '18px',
-                    cursor: 'pointer',
-                    pointerEvents: 'all',
-                    lineHeight: 1,
-                    padding: '4px 6px',
-                }}
-                title="Pause (Echap)"
-            >
-                ⏸
-            </button>
+            {/* Boutons top-right */}
+            <div style={{
+                position: 'absolute', top: '10px', right: '10px',
+                display: 'flex', gap: '4px', pointerEvents: 'all',
+            }}>
+                <IconBtn onClick={onMusicMute} title={musicMuted ? 'Activer musique' : 'Couper musique'}>
+                    {musicMuted ? '🔇' : '🔊'}
+                </IconBtn>
+                <IconBtn onClick={onSettings} title="Paramètres">⚙</IconBtn>
+                <IconBtn onClick={onPause} title="Pause (Echap)">⏸</IconBtn>
+            </div>
 
             {/* Indicateur de phase */}
             {phase === 'scored' && (
@@ -69,6 +64,20 @@ export function HUD({ state, onPause }: HUDProps) {
                 </div>
             )}
         </div>
+    )
+}
+
+// ─── Bouton icône ────────────────────────────────────────────────────────────
+
+function IconBtn({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title?: string }) {
+    return (
+        <button onClick={onClick} title={title} style={{
+            background: 'transparent', border: 'none',
+            color: 'rgba(255,255,255,0.3)', fontSize: '16px',
+            cursor: 'pointer', lineHeight: 1, padding: '4px 5px',
+        }}>
+            {children}
+        </button>
     )
 }
 

@@ -1,15 +1,20 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { useGameState } from '../hooks/useGameState'
+import { useMusic } from '../hooks/useMusic'
 import { drawScene, resetTrail } from '../renderer/drawScene'
 import { HUD } from './HUD'
 import { MenuScreen } from './MenuScreen'
+import { SettingsModal } from './SettingsModal'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants'
 
 export function GameCanvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const { state, start, pause, reset, setMode } = useGameState()
+    const music = useMusic()
+    const [showSettings, setShowSettings] = useState(false)
+    const prevPhaseRef = useRef(state.phase)
 
-    // Rendu Canvas à chaque changement d'état
+    // ── Rendu Canvas ────────────────────────────────────────────────────────────
     useEffect(() => {
         const ctx = canvasRef.current?.getContext('2d')
         if (!ctx) return
@@ -17,15 +22,45 @@ export function GameCanvas() {
         drawScene(ctx, state)
     }, [state])
 
-    // Reset traînée balle entre les points
+    // Reset traînée entre les points
     useEffect(() => {
         if (state.phase === 'playing') resetTrail()
     }, [state.phase])
 
-    // Echap → pause
+    // ── Réactions musique aux transitions de phase ──────────────────────────────
+    useEffect(() => {
+        const prev = prevPhaseRef.current
+        const curr = state.phase
+
+        // Démarrer la musique dès que le jeu commence
+        if (prev === 'menu' && curr === 'playing') {
+            music.play()
+            music.fadeIn(600)
+        }
+
+        // Pause → baisser la musique
+        if (curr === 'paused' && prev === 'playing') {
+            music.fadeOut(400)
+        }
+        if (curr === 'playing' && prev === 'paused') {
+            music.fadeIn(400)
+        }
+
+        // Game over → fade out long
+        if (curr === 'gameover' && prev !== 'gameover') {
+            music.fadeOut(1800)
+        }
+
+        prevPhaseRef.current = curr
+    }, [state.phase, music])
+
+    // ── Echap → pause ───────────────────────────────────────────────────────────
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') pause()
+            if (e.key === 'Escape') {
+                setShowSettings(false)
+                pause()
+            }
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
@@ -48,24 +83,55 @@ export function GameCanvas() {
                     }}
                 />
 
-                {/* HUD superposé (score + pause) */}
+                {/* HUD superposé */}
                 {(state.phase === 'playing' || state.phase === 'scored') && (
-                    <HUD state={state} onPause={pause} />
+                    <HUD
+                        state={state}
+                        onPause={pause}
+                        musicMuted={music.muted}
+                        onMusicMute={music.toggleMute}
+                        onSettings={() => { pause(); setShowSettings(true) }}
+                    />
+                )}
+
+                {/* Modal paramètres */}
+                {showSettings && (
+                    <SettingsModal
+                        musicVolume={music.volume}
+                        musicMuted={music.muted}
+                        onMusicVolume={music.setVolume}
+                        onMusicMute={music.toggleMute}
+                        onClose={() => { setShowSettings(false); pause() }}
+                    />
                 )}
 
                 {/* Overlay Menu */}
                 {state.phase === 'menu' && (
                     <Overlay>
-                        <MenuScreen onStart={(mode, diff) => start(mode, diff)} />
+                        <MenuScreen
+                            musicMuted={music.muted}
+                            musicVolume={music.volume}
+                            onMusicMute={music.toggleMute}
+                            onMusicVolume={music.setVolume}
+                            onSettings={() => setShowSettings(true)}
+                            onStart={(mode, diff) => { music.init(); start(mode, diff) }}
+                        />
                     </Overlay>
                 )}
 
                 {/* Overlay Pause */}
-                {state.phase === 'paused' && (
+                {state.phase === 'paused' && !showSettings && (
                     <Overlay>
                         <BigTitle>PAUSE</BigTitle>
-                        <PrimaryButton onClick={pause}>Reprendre</PrimaryButton>
-                        <SecondaryButton onClick={reset}>Quitter</SecondaryButton>
+                        <PrimaryButton onClick={() => { setShowSettings(false); pause() }}>
+                            Reprendre
+                        </PrimaryButton>
+                        <SecondaryButton onClick={() => setShowSettings(true)}>
+                            ⚙ Paramètres
+                        </SecondaryButton>
+                        <SecondaryButton onClick={() => { reset(); music.fadeOut(400) }}>
+                            Quitter
+                        </SecondaryButton>
                     </Overlay>
                 )}
 
@@ -78,17 +144,17 @@ export function GameCanvas() {
                         <FinalScore>
                             {state.paddleLeft.score} — {state.paddleRight.score}
                         </FinalScore>
-                        <PrimaryButton onClick={start}>Rejouer</PrimaryButton>
+                        <PrimaryButton onClick={() => { start(state.gameMode, state.difficulty); music.fadeIn(600) }}>
+                            Rejouer
+                        </PrimaryButton>
                         <SecondaryButton onClick={reset}>Menu</SecondaryButton>
                     </Overlay>
                 )}
             </div>
 
             <p style={{
-                color: 'rgba(255,255,255,0.18)',
-                fontFamily: 'monospace',
-                fontSize: '11px',
-                marginTop: '10px',
+                color: 'rgba(255,255,255,0.15)',
+                fontFamily: 'monospace', fontSize: '11px', marginTop: '10px',
             }}>
                 Echap pour pause
             </p>
@@ -105,7 +171,7 @@ function Overlay({ children }: { children: React.ReactNode }) {
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
             gap: '14px',
-            background: 'rgba(10,10,10,0.85)',
+            background: 'rgba(10,10,10,0.88)',
             borderRadius: '4px',
         }}>
             {children}
@@ -130,17 +196,6 @@ function FinalScore({ children }: { children: React.ReactNode }) {
         <p style={{
             color: 'rgba(255,255,255,0.55)',
             fontFamily: 'monospace', fontSize: '36px', margin: 0,
-        }}>
-            {children}
-        </p>
-    )
-}
-
-function Hint({ children }: { children: React.ReactNode }) {
-    return (
-        <p style={{
-            color: 'rgba(255,255,255,0.35)',
-            fontFamily: 'monospace', fontSize: '13px', margin: 0,
         }}>
             {children}
         </p>

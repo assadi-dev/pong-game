@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import type { GameMode, Difficulty } from '../types/game.types'
 
-
 type MenuScreenProps = {
     onStart: (mode: GameMode, difficulty: Difficulty) => void
+    musicMuted: boolean
+    musicVolume: number
+    onMusicMute: () => void
+    onMusicVolume: (v: number) => void
+    onSettings: () => void
 }
 
-export function MenuScreen({ onStart }: MenuScreenProps) {
+export function MenuScreen({ onStart, musicMuted, musicVolume, onMusicMute, onMusicVolume, onSettings }: MenuScreenProps) {
     const [mode, setMode] = useState<GameMode>('pvp')
     const [difficulty, setDifficulty] = useState<Difficulty>('medium')
 
@@ -72,6 +76,33 @@ export function MenuScreen({ onStart }: MenuScreenProps) {
                     : <ControlHint left="Joueur 2" right="IA 🤖" />
                 }
                 <ControlHint left="Pause" right="Echap" />
+            </div>
+
+            {/* Contrôles audio */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button onClick={onMusicMute} style={{
+                    background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: '4px', color: musicMuted ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.6)',
+                    fontSize: '16px', cursor: 'pointer', padding: '4px 8px', lineHeight: 1,
+                }}>
+                    {musicMuted ? '🔇' : '🔊'}
+                </button>
+                <input
+                    type="range" min={0} max={100}
+                    value={Math.round(musicMuted ? 0 : musicVolume * 100)}
+                    onChange={e => { if (musicMuted) onMusicMute(); onMusicVolume(Number(e.target.value) / 100) }}
+                    style={{ width: '110px', accentColor: '#fff', cursor: 'pointer' }}
+                />
+                <span style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'monospace', fontSize: '11px', minWidth: '32px' }}>
+                    {Math.round(musicMuted ? 0 : musicVolume * 100)}%
+                </span>
+                <button onClick={onSettings} style={{
+                    background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: '4px', color: 'rgba(255,255,255,0.4)',
+                    fontSize: '14px', cursor: 'pointer', padding: '4px 8px', lineHeight: 1,
+                }}>
+                    ⚙
+                </button>
             </div>
 
             {/* Bouton Jouer */}
