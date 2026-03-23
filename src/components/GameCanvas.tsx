@@ -1,103 +1,178 @@
-import { useRef, useCallback } from 'react'
-import { useGameLoop } from '../hooks/useGameLoop'
-import { useKeyboard } from '../hooks/useKeyboard'
-import { moveBall, bounceWalls, movePaddle } from '../utils/physics'
-import { collideBallPaddleLeft, collideBallPaddleRight, detectPoint } from '../utils/collisions'
-import { directionLeft, directionRight } from '../utils/input'
-import { createBall, createPaddleLeft, createPaddleRight } from '../utils/factories'
+import { useRef, useEffect } from 'react'
+import { useGameState } from '../hooks/useGameState'
+import { drawScene, resetTrail } from '../renderer/drawScene'
+import { HUD } from './HUD'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants'
-import type { Ball, Paddle } from '../types/game.types'
-
-// ─── Rendu ────────────────────────────────────────────────────────────────────
-
-function drawScene(ctx: CanvasRenderingContext2D, ball: Ball, left: Paddle, right: Paddle) {
-    // Fond
-    ctx.fillStyle = '#0a0a0a'
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
-
-    // Ligne centrale pointillée
-    ctx.setLineDash([10, 10])
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(CANVAS_WIDTH / 2, 0)
-    ctx.lineTo(CANVAS_WIDTH / 2, CANVAS_HEIGHT)
-    ctx.stroke()
-    ctx.setLineDash([])
-
-    // Raquettes
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(left.position.x, left.position.y, left.width, left.height)
-    ctx.fillRect(right.position.x, right.position.y, right.width, right.height)
-
-    // Balle
-    ctx.fillRect(
-        ball.position.x - ball.size / 2,
-        ball.position.y - ball.size / 2,
-        ball.size,
-        ball.size,
-    )
-}
-
-// ─── Composant ────────────────────────────────────────────────────────────────
 
 export function GameCanvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null)
-    const ballRef = useRef<Ball>(createBall())
-    const leftRef = useRef<Paddle>(createPaddleLeft())
-    const rightRef = useRef<Paddle>(createPaddleRight())
-    const keysRef = useKeyboard()
+    const { state, start, pause, reset } = useGameState()
 
-    const tick = useCallback((dt: number) => {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        const ctx = canvas.getContext('2d')
+    // Rendu Canvas à chaque changement d'état
+    useEffect(() => {
+        const ctx = canvasRef.current?.getContext('2d')
         if (!ctx) return
+        if (state.phase === 'menu' || state.phase === 'gameover') return
+        drawScene(ctx, state)
+    }, [state])
 
-        const keys = keysRef.current
+    // Reset traînée balle entre les points
+    useEffect(() => {
+        if (state.phase === 'playing') resetTrail()
+    }, [state.phase])
 
-        // Déplacer les raquettes
-        leftRef.current = movePaddle(leftRef.current, directionLeft(keys), dt)
-        rightRef.current = movePaddle(rightRef.current, directionRight(keys), dt)
-
-        // Déplacer la balle
-        let ball = moveBall(ballRef.current, dt)
-        ball = bounceWalls(ball)
-
-        // Collisions raquettes
-        const { ball: ballAfterLeft } = collideBallPaddleLeft(ball, leftRef.current)
-        ball = ballAfterLeft
-        const { ball: ballAfterRight } = collideBallPaddleRight(ball, rightRef.current)
-        ball = ballAfterRight
-
-        // Point marqué → reset balle (pas de score encore, Phase 6)
-        if (detectPoint(ball) !== null) {
-            ball = createBall()
+    // Echap → pause
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') pause()
         }
-
-        ballRef.current = ball
-
-        drawScene(ctx, ball, leftRef.current, rightRef.current)
-    }, [keysRef])
-
-    useGameLoop(tick, true)
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [pause])
 
     return (
-        <div style={{ textAlign: 'center' }}>
-            <canvas
-                ref={canvasRef}
-                width={CANVAS_WIDTH}
-                height={CANVAS_HEIGHT}
-                style={{
-                    display: 'block',
-                    margin: '0 auto',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '4px',
-                }}
-            />
-            <p style={{ color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', fontSize: '12px', marginTop: '12px' }}>
-                Joueur gauche : W / S &nbsp;|&nbsp; Joueur droit : ↑ / ↓
+        <div style={{ textAlign: 'center', userSelect: 'none' }}>
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+
+                {/* Canvas de jeu */}
+                <canvas
+                    ref={canvasRef}
+                    width={CANVAS_WIDTH}
+                    height={CANVAS_HEIGHT}
+                    style={{
+                        display: 'block',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '4px',
+                        background: '#0a0a0a',
+                    }}
+                />
+
+                {/* HUD superposé (score + pause) */}
+                {(state.phase === 'playing' || state.phase === 'scored') && (
+                    <HUD state={state} onPause={pause} />
+                )}
+
+                {/* Overlay Menu */}
+                {state.phase === 'menu' && (
+                    <Overlay>
+                        <BigTitle>PONG</BigTitle>
+                        <Hint>Joueur 1 : W / S</Hint>
+                        <Hint>Joueur 2 : ↑ / ↓</Hint>
+                        <PrimaryButton onClick={start}>Jouer</PrimaryButton>
+                    </Overlay>
+                )}
+
+                {/* Overlay Pause */}
+                {state.phase === 'paused' && (
+                    <Overlay>
+                        <BigTitle>PAUSE</BigTitle>
+                        <PrimaryButton onClick={pause}>Reprendre</PrimaryButton>
+                        <SecondaryButton onClick={reset}>Quitter</SecondaryButton>
+                    </Overlay>
+                )}
+
+                {/* Overlay Game Over */}
+                {state.phase === 'gameover' && (
+                    <Overlay>
+                        <BigTitle>
+                            {state.winner === 'left' ? 'Joueur 1' : 'Joueur 2'} gagne !
+                        </BigTitle>
+                        <FinalScore>
+                            {state.paddleLeft.score} — {state.paddleRight.score}
+                        </FinalScore>
+                        <PrimaryButton onClick={start}>Rejouer</PrimaryButton>
+                        <SecondaryButton onClick={reset}>Menu</SecondaryButton>
+                    </Overlay>
+                )}
+            </div>
+
+            <p style={{
+                color: 'rgba(255,255,255,0.18)',
+                fontFamily: 'monospace',
+                fontSize: '11px',
+                marginTop: '10px',
+            }}>
+                Echap pour pause
             </p>
         </div>
+    )
+}
+
+// ─── Composants UI ────────────────────────────────────────────────────────────
+
+function Overlay({ children }: { children: React.ReactNode }) {
+    return (
+        <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            gap: '14px',
+            background: 'rgba(10,10,10,0.85)',
+            borderRadius: '4px',
+        }}>
+            {children}
+        </div>
+    )
+}
+
+function BigTitle({ children }: { children: React.ReactNode }) {
+    return (
+        <h1 style={{
+            color: '#fff', fontFamily: 'monospace',
+            fontSize: '52px', margin: '0 0 8px',
+            letterSpacing: '8px', fontWeight: 'bold',
+        }}>
+            {children}
+        </h1>
+    )
+}
+
+function FinalScore({ children }: { children: React.ReactNode }) {
+    return (
+        <p style={{
+            color: 'rgba(255,255,255,0.55)',
+            fontFamily: 'monospace', fontSize: '36px', margin: 0,
+        }}>
+            {children}
+        </p>
+    )
+}
+
+function Hint({ children }: { children: React.ReactNode }) {
+    return (
+        <p style={{
+            color: 'rgba(255,255,255,0.35)',
+            fontFamily: 'monospace', fontSize: '13px', margin: 0,
+        }}>
+            {children}
+        </p>
+    )
+}
+
+function PrimaryButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+    return (
+        <button onClick={onClick} style={{
+            marginTop: '8px', padding: '10px 36px',
+            background: '#ffffff', color: '#0a0a0a',
+            border: 'none', borderRadius: '4px',
+            fontFamily: 'monospace', fontSize: '15px', fontWeight: 'bold',
+            cursor: 'pointer', letterSpacing: '3px',
+        }}>
+            {children}
+        </button>
+    )
+}
+
+function SecondaryButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+    return (
+        <button onClick={onClick} style={{
+            padding: '8px 24px',
+            background: 'transparent', color: 'rgba(255,255,255,0.35)',
+            border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px',
+            fontFamily: 'monospace', fontSize: '13px',
+            cursor: 'pointer',
+        }}>
+            {children}
+        </button>
     )
 }
