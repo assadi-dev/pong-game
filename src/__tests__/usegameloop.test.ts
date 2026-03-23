@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useGameLoop } from '../hooks/useGameloop'
+import { useGameLoop } from '../hooks/useGameLoop'
 
 
 describe('useGameLoop', () => {

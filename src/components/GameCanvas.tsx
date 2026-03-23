@@ -1,25 +1,16 @@
 import { useRef, useCallback } from 'react'
-import { useGameLoop } from '../hooks/useGameloop'
+import { useGameLoop } from '../hooks/useGameLoop'
+import { useKeyboard } from '../hooks/useKeyboard'
+import { moveBall, bounceWalls, movePaddle } from '../utils/physics'
+import { collideBallPaddleLeft, collideBallPaddleRight, detectPoint } from '../utils/collisions'
+import { directionLeft, directionRight } from '../utils/input'
+import { createBall, createPaddleLeft, createPaddleRight } from '../utils/factories'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants'
+import type { Ball, Paddle } from '../types/game.types'
 
-// Démo Phase 2 : une balle qui rebondit sur les murs
-type Ball = {
-    x: number
-    y: number
-    vx: number
-    vy: number
-    size: number
-}
+// ─── Rendu ────────────────────────────────────────────────────────────────────
 
-const initBall = (): Ball => ({
-    x: CANVAS_WIDTH / 2,
-    y: CANVAS_HEIGHT / 2,
-    vx: 300,
-    vy: 220,
-    size: 12,
-})
-
-function drawScene(ctx: CanvasRenderingContext2D, ball: Ball) {
+function drawScene(ctx: CanvasRenderingContext2D, ball: Ball, left: Paddle, right: Paddle) {
     // Fond
     ctx.fillStyle = '#0a0a0a'
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
@@ -34,14 +25,28 @@ function drawScene(ctx: CanvasRenderingContext2D, ball: Ball) {
     ctx.stroke()
     ctx.setLineDash([])
 
-    // Balle
+    // Raquettes
     ctx.fillStyle = '#ffffff'
-    ctx.fillRect(ball.x - ball.size / 2, ball.y - ball.size / 2, ball.size, ball.size)
+    ctx.fillRect(left.position.x, left.position.y, left.width, left.height)
+    ctx.fillRect(right.position.x, right.position.y, right.width, right.height)
+
+    // Balle
+    ctx.fillRect(
+        ball.position.x - ball.size / 2,
+        ball.position.y - ball.size / 2,
+        ball.size,
+        ball.size,
+    )
 }
+
+// ─── Composant ────────────────────────────────────────────────────────────────
 
 export function GameCanvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null)
-    const ballRef = useRef<Ball>(initBall())
+    const ballRef = useRef<Ball>(createBall())
+    const leftRef = useRef<Paddle>(createPaddleLeft())
+    const rightRef = useRef<Paddle>(createPaddleRight())
+    const keysRef = useKeyboard()
 
     const tick = useCallback((dt: number) => {
         const canvas = canvasRef.current
@@ -49,48 +54,50 @@ export function GameCanvas() {
         const ctx = canvas.getContext('2d')
         if (!ctx) return
 
-        const ball = ballRef.current
+        const keys = keysRef.current
 
-        // Mouvement
-        ball.x += ball.vx * dt
-        ball.y += ball.vy * dt
+        // Déplacer les raquettes
+        leftRef.current = movePaddle(leftRef.current, directionLeft(keys), dt)
+        rightRef.current = movePaddle(rightRef.current, directionRight(keys), dt)
 
-        // Rebond haut / bas
-        if (ball.y - ball.size / 2 <= 0) {
-            ball.y = ball.size / 2
-            ball.vy = Math.abs(ball.vy)
-        }
-        if (ball.y + ball.size / 2 >= CANVAS_HEIGHT) {
-            ball.y = CANVAS_HEIGHT - ball.size / 2
-            ball.vy = -Math.abs(ball.vy)
-        }
+        // Déplacer la balle
+        let ball = moveBall(ballRef.current, dt)
+        ball = bounceWalls(ball)
 
-        // Rebond gauche / droite (démo — pas de score encore)
-        if (ball.x - ball.size / 2 <= 0) {
-            ball.x = ball.size / 2
-            ball.vx = Math.abs(ball.vx)
-        }
-        if (ball.x + ball.size / 2 >= CANVAS_WIDTH) {
-            ball.x = CANVAS_WIDTH - ball.size / 2
-            ball.vx = -Math.abs(ball.vx)
+        // Collisions raquettes
+        const { ball: ballAfterLeft } = collideBallPaddleLeft(ball, leftRef.current)
+        ball = ballAfterLeft
+        const { ball: ballAfterRight } = collideBallPaddleRight(ball, rightRef.current)
+        ball = ballAfterRight
+
+        // Point marqué → reset balle (pas de score encore, Phase 6)
+        if (detectPoint(ball) !== null) {
+            ball = createBall()
         }
 
-        drawScene(ctx, ball)
-    }, [])
+        ballRef.current = ball
+
+        drawScene(ctx, ball, leftRef.current, rightRef.current)
+    }, [keysRef])
 
     useGameLoop(tick, true)
 
     return (
-        <canvas
-            ref={canvasRef}
-            width={CANVAS_WIDTH}
-            height={CANVAS_HEIGHT}
-            style={{
-                display: 'block',
-                margin: '0 auto',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '4px',
-            }}
-        />
+        <div style={{ textAlign: 'center' }}>
+            <canvas
+                ref={canvasRef}
+                width={CANVAS_WIDTH}
+                height={CANVAS_HEIGHT}
+                style={{
+                    display: 'block',
+                    margin: '0 auto',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '4px',
+                }}
+            />
+            <p style={{ color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', fontSize: '12px', marginTop: '12px' }}>
+                Joueur gauche : W / S &nbsp;|&nbsp; Joueur droit : ↑ / ↓
+            </p>
+        </div>
     )
 }
