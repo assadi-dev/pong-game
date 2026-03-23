@@ -40,22 +40,33 @@ export type CollisionResult = {
 }
 
 /**
- * Calcule l'angle de rebond en fonction de l'endroit où la balle
- * touche la raquette.
+ * Rebond linéaire : conserve la composante Y d'entrée,
+ * inverse vx, et applique une légère déviation selon
+ * l'endroit touché sur la raquette (max ±35°).
  *
- * Centre de raquette  → angle plat  (~0°)
- * Bord haut/bas       → angle fort  (~±75°)
+ * Résultat : trajectoires prévisibles et naturelles.
  */
-function computeReflectAngle(ball: Ball, paddle: Paddle): number {
+function reflectLinear(ball: Ball, paddle: Paddle, dirX: 1 | -1): Ball {
     const paddleCenterY = paddle.position.y + paddle.height / 2
     const relativeHit = (ball.position.y - paddleCenterY) / (paddle.height / 2)
-    const maxAngle = 75 * (Math.PI / 180)
-    return relativeHit * maxAngle
+
+    // Déviation max réduite à 35° — trajectoires bien plus linéaires
+    const MAX_DEFLECT = 35 * (Math.PI / 180)
+    const deflect = relativeHit * MAX_DEFLECT
+
+    const speed = Math.sqrt(ball.velocity.x ** 2 + ball.velocity.y ** 2)
+
+    return {
+        ...ball,
+        velocity: {
+            x: Math.cos(deflect) * speed * dirX,
+            y: Math.sin(deflect) * speed,
+        },
+    }
 }
 
 /**
  * Teste la collision entre la balle et la raquette gauche.
- * Si collision : inverse vx, calcule le nouvel angle, accélère.
  */
 export function collideBallPaddleLeft(ball: Ball, paddle: Paddle): CollisionResult {
     const br = ballRect(ball)
@@ -63,23 +74,15 @@ export function collideBallPaddleLeft(ball: Ball, paddle: Paddle): CollisionResu
 
     if (!rectsOverlap(br, pr)) return { ball, hit: false }
 
-    const angle = computeReflectAngle(ball, paddle)
-    const speed = Math.sqrt(ball.velocity.x ** 2 + ball.velocity.y ** 2)
-
-    const newBall: Ball = {
-        ...ball,
-        // Repositionne la balle hors de la raquette
+    const reflected: Ball = {
+        ...reflectLinear(ball, paddle, 1),
         position: {
             ...ball.position,
             x: paddle.position.x + paddle.width + ball.size / 2,
         },
-        velocity: {
-            x: Math.cos(angle) * speed,  // toujours vers la droite
-            y: Math.sin(angle) * speed,
-        },
     }
 
-    return { ball: accelerateBall(newBall), hit: true }
+    return { ball: accelerateBall(reflected), hit: true }
 }
 
 /**
@@ -91,22 +94,15 @@ export function collideBallPaddleRight(ball: Ball, paddle: Paddle): CollisionRes
 
     if (!rectsOverlap(br, pr)) return { ball, hit: false }
 
-    const angle = computeReflectAngle(ball, paddle)
-    const speed = Math.sqrt(ball.velocity.x ** 2 + ball.velocity.y ** 2)
-
-    const newBall: Ball = {
-        ...ball,
+    const reflected: Ball = {
+        ...reflectLinear(ball, paddle, -1),
         position: {
             ...ball.position,
             x: paddle.position.x - ball.size / 2,
         },
-        velocity: {
-            x: -Math.cos(angle) * speed,  // toujours vers la gauche
-            y: Math.sin(angle) * speed,
-        },
     }
 
-    return { ball: accelerateBall(newBall), hit: true }
+    return { ball: accelerateBall(reflected), hit: true }
 }
 
 // ─── Détection de point ───────────────────────────────────────────────────────

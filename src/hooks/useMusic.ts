@@ -2,7 +2,6 @@ import { useRef, useEffect, useCallback, useState } from 'react'
 import { DEFAULT_VOLUME } from '../utils/constants'
 
 
-
 export function useMusic() {
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const gainRef = useRef<GainNode | null>(null)
@@ -34,12 +33,15 @@ export function useMusic() {
         audio.play().catch(() => {/* autoplay bloqué — l'utilisateur devra interagir */ })
     }, [])
 
-    // Jouer / reprendre
+    // Jouer depuis le début
     const play = useCallback(() => {
         init()
         cancelAnimationFrame(fadeRef.current)
         if (gainRef.current) gainRef.current.gain.value = muted ? 0 : volume
-        audioRef.current?.play().catch(() => { })
+        if (audioRef.current) {
+            audioRef.current.currentTime = 0   // repart toujours du début
+            audioRef.current.play().catch(() => { })
+        }
     }, [init, muted, volume])
 
     // Pause
