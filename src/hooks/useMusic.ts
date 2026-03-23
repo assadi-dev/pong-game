@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
+import { DEFAULT_VOLUME } from '../utils/constants'
 
-const DEFAULT_VOLUME = 0.45
+
 
 export function useMusic() {
     const audioRef = useRef<HTMLAudioElement | null>(null)

@@ -5,23 +5,23 @@ import { CANVAS_HEIGHT } from './constants'
 
 // Vitesse de réaction de l'IA selon la difficulté (fraction de PADDLE_SPEED)
 const REACTION_SPEED: Record<Difficulty, number> = {
-    easy: 0.45,
-    medium: 0.72,
+    easy: 0.22,
+    medium: 0.52,
     hard: 0.95,
 }
 
 // Marge d'erreur en px : l'IA vise le centre ± cette valeur
 const AIM_ERROR: Record<Difficulty, number> = {
-    easy: 80,
-    medium: 40,
+    easy: 250,
+    medium: 150,
     hard: 5,
 }
 
 // Délai de réaction en secondes : l'IA ignore la balle pendant ce temps
 const REACTION_DELAY: Record<Difficulty, number> = {
-    easy: 0.5,
-    medium: 0.25,
-    hard: 0.0,
+    easy: 0.9,
+    medium: 0.65,
+    hard: 0.45,
 }
 
 type AIState = {
@@ -92,11 +92,11 @@ function predictBallY(ball: Ball, difficulty: Difficulty): number {
     // La balle s'éloigne → rester au centre
     if (vx <= 0) return CANVAS_HEIGHT / 2
 
-    // Facile : ne prédit que si la balle est déjà dans la moitié droite
-    if (difficulty === 'easy' && x < 400) return CANVAS_HEIGHT / 2
+    // Facile : ne prédit que si la balle est déjà proche (600px)
+    if (difficulty === 'easy' && x < 600) return CANVAS_HEIGHT / 2
 
-    // Moyen : ne prédit que si la balle a passé le 1er quart
-    if (difficulty === 'medium' && x < 200) return CANVAS_HEIGHT / 2
+    // Moyen : ne prédit que si la balle a passé la moitié
+    if (difficulty === 'medium' && x < 350) return CANVAS_HEIGHT / 2
 
     // Distance horizontale jusqu'au bord droit (approximatif)
     const targetX = 780

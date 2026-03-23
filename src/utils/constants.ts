@@ -12,3 +12,5 @@ export const BALL_SPEED_MAX = 700
 export const BALL_SPEED_INC = 20   // accélération par rebond raquette
 
 export const WINNING_SCORE = 7
+
+export const DEFAULT_VOLUME = 0.45
