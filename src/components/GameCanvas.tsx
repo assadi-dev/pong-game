@@ -2,11 +2,12 @@ import { useRef, useEffect } from 'react'
 import { useGameState } from '../hooks/useGameState'
 import { drawScene, resetTrail } from '../renderer/drawScene'
 import { HUD } from './HUD'
+import { MenuScreen } from './MenuScreen'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants'
 
 export function GameCanvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null)
-    const { state, start, pause, reset } = useGameState()
+    const { state, start, pause, reset, setMode } = useGameState()
 
     // Rendu Canvas à chaque changement d'état
     useEffect(() => {
@@ -55,10 +56,7 @@ export function GameCanvas() {
                 {/* Overlay Menu */}
                 {state.phase === 'menu' && (
                     <Overlay>
-                        <BigTitle>PONG</BigTitle>
-                        <Hint>Joueur 1 : W / S</Hint>
-                        <Hint>Joueur 2 : ↑ / ↓</Hint>
-                        <PrimaryButton onClick={start}>Jouer</PrimaryButton>
+                        <MenuScreen onStart={(mode, diff) => start(mode, diff)} />
                     </Overlay>
                 )}
 

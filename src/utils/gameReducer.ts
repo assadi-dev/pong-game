@@ -1,22 +1,26 @@
 import type { GameState, GameAction } from '../types/game.types'
-import { createBall, createInitialState } from './factories'
+import { createBall, createPaddleLeft, createPaddleRight, createInitialState } from './factories'
 import { moveBall, bounceWalls, movePaddle } from './physics'
 import { collideBallPaddleLeft, collideBallPaddleRight, detectPoint } from './collisions'
 import { directionLeft, directionRight } from './input'
+import { computeAIDirection, resetAI } from './ai'
 
-// Transition après un point handled in useGameState.ts
-
+// Délai de freeze après un point (en secondes)
+const SCORED_FREEZE_DURATION = 1.0
 
 // Accumule le temps passé en phase 'scored'
-
+let scoredTimer = 0
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
     switch (action.type) {
 
         case 'START_GAME':
+            resetAI()
             return {
                 ...createInitialState(),
                 phase: 'playing',
+                gameMode: action.gameMode ?? state.gameMode,
+                difficulty: action.difficulty ?? state.difficulty,
             }
 
         case 'RESET_GAME':
@@ -27,6 +31,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             if (state.phase === 'paused') return { ...state, phase: 'playing' }
             return state
 
+
+        case 'SET_MODE':
+            return {
+                ...state,
+                gameMode: action.gameMode,
+                difficulty: action.difficulty,
+            }
+
         // ── Tick principal ────────────────────────────────────────────────────────
         case 'TICK': {
             if (state.phase !== 'playing') return state
@@ -35,7 +47,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
             // Raquettes
             const paddleLeft = movePaddle(state.paddleLeft, directionLeft(keys), deltaTime)
-            const paddleRight = movePaddle(state.paddleRight, directionRight(keys), deltaTime)
+
+            // Joueur 2 ou IA selon le mode
+            const rightDir = state.gameMode === 'solo'
+                ? computeAIDirection(state.paddleRight, state.ball, deltaTime, state.difficulty)
+                : directionRight(keys)
+            const paddleRight = movePaddle(state.paddleRight, rightDir, deltaTime)
 
             // Balle
             let ball = moveBall(state.ball, deltaTime)
@@ -46,7 +63,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             const { ball: ballR, hit: hitR } = collideBallPaddleRight(ball, paddleRight)
             ball = ballR
 
-            void hitL; void hitR // utilisés en Phase 8 pour les sons
+            void hitL; void hitR // les sons sont détectés dans useGameState via les changements de vélocité
 
             // Point marqué ?
             const scorer = detectPoint(ball)
@@ -66,6 +83,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
                     }
                 }
 
+                scoredTimer = 0
                 return {
                     ...state,
                     phase: 'scored',
@@ -78,10 +96,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             return { ...state, ball, paddleLeft, paddleRight }
         }
 
-        // ── Transition après un point ─────────────────────────────────────────────
+        // ── Freeze après un point ─────────────────────────────────────────────────
         case 'RESUME_AFTER_POINT': {
             if (state.phase !== 'scored') return state
-            return { ...state, phase: 'playing' }
+            scoredTimer += 1 / 60 // approximation, géré dans le composant
+            if (scoredTimer >= SCORED_FREEZE_DURATION) {
+                scoredTimer = 0
+                return { ...state, phase: 'playing' }
+            }
+            return state
         }
 
         default:

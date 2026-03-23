@@ -1,5 +1,5 @@
 import type { GameState } from '../types/game.types'
-import { CANVAS_WIDTH } from '../utils/constants'
+
 
 type HUDProps = {
     state: GameState

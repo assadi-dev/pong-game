@@ -38,17 +38,26 @@ export type GameState = {
     paddleRight: Paddle
     winningScore: number
     winner: 'left' | 'right' | null
+    gameMode: GameMode
+    difficulty: Difficulty
 }
+
+
+// ─── Mode de jeu & difficulté ─────────────────────────────────────────────────
+
+export type GameMode = 'pvp' | 'solo'
+export type Difficulty = 'easy' | 'medium' | 'hard'
 
 // ─── Actions du reducer ──────────────────────────────────────────────────────
 
 export type GameAction =
-    | { type: 'START_GAME' }
+    | { type: 'START_GAME'; gameMode?: GameMode; difficulty?: Difficulty }
     | { type: 'PAUSE_TOGGLE' }
     | { type: 'TICK'; deltaTime: number; keys: KeysPressed }
     | { type: 'POINT_SCORED'; side: 'left' | 'right' }
     | { type: 'RESUME_AFTER_POINT' }
     | { type: 'RESET_GAME' }
+    | { type: 'SET_MODE'; gameMode: GameMode; difficulty: Difficulty }
 
 // ─── Inputs clavier ──────────────────────────────────────────────────────────
 

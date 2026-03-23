@@ -4,6 +4,7 @@ import { createInitialState } from '../utils/factories'
 import { useGameLoop } from './useGameLoop'
 import { useKeyboard } from './useKeyboard'
 import { useAudio } from './useAudio'
+import type { GameMode, Difficulty } from '../types/game.types'
 import type { GameState, GameAction } from '../types/game.types'
 
 const SCORED_FREEZE_DURATION = 1.0
@@ -50,7 +51,7 @@ export function useGameState() {
     const tick = useCallback((dt: number) => {
         if (state.phase === 'scored') {
             scoredTimerRef.current += dt
-            if (scoredTimerRef.current >= SCORED_FREEZE_DURATION) {
+            if (scoredTimerRef.current >= SCORED_FREEZE_DURATION / 60) {
                 scoredTimerRef.current = 0
                 dispatch({ type: 'RESUME_AFTER_POINT' })
             }
@@ -63,15 +64,21 @@ export function useGameState() {
     const running = state.phase === 'playing' || state.phase === 'scored'
     useGameLoop(tick, running)
 
-    const start = useCallback(() => dispatch({ type: 'START_GAME' }), [])
+    const setMode = useCallback((gameMode: GameMode, difficulty: Difficulty) => {
+        dispatch({ type: 'SET_MODE', gameMode, difficulty })
+    }, [])
+
+    const start = useCallback((gameMode?: GameMode, difficulty?: Difficulty) =>
+        dispatch({ type: 'START_GAME', gameMode, difficulty }), [])
     const pause = useCallback(() => dispatch({ type: 'PAUSE_TOGGLE' }), [])
     const reset = useCallback(() => dispatch({ type: 'RESET_GAME' }), [])
 
-    return { state, start, pause, reset, dispatch } as {
+    return { state, start, pause, reset, setMode, dispatch } as {
         state: GameState
-        start: () => void
+        start: (gameMode?: GameMode, difficulty?: Difficulty) => void
         pause: () => void
         reset: () => void
+        setMode: (gameMode: GameMode, difficulty: Difficulty) => void
         dispatch: React.Dispatch<GameAction>
     }
 }
