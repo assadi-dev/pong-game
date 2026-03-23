@@ -54,17 +54,22 @@ export function GameCanvas() {
         prevPhaseRef.current = curr
     }, [state.phase, music])
 
-    // ── Echap → pause ───────────────────────────────────────────────────────────
+    // ── Pause automatique quand settings ouvert ────────────────────────────────
+    useEffect(() => {
+        if (showSettings && state.phase === 'playing') pause()
+    }, [showSettings]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ── Echap → ferme settings ou met en pause ──────────────────────────────────
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
-                setShowSettings(false)
+                if (showSettings) { setShowSettings(false); return }
                 pause()
             }
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
-    }, [pause])
+    }, [pause, showSettings])
 
     return (
         <div style={{ textAlign: 'center', userSelect: 'none' }}>
@@ -90,18 +95,18 @@ export function GameCanvas() {
                         onPause={pause}
                         musicMuted={music.muted}
                         onMusicMute={music.toggleMute}
-                        onSettings={() => { pause(); setShowSettings(true) }}
+                        onSettings={() => setShowSettings(true)}
                     />
                 )}
 
-                {/* Modal paramètres */}
+                {/* Modal paramètres — visible par-dessus tout */}
                 {showSettings && (
                     <SettingsModal
                         musicVolume={music.volume}
                         musicMuted={music.muted}
                         onMusicVolume={music.setVolume}
                         onMusicMute={music.toggleMute}
-                        onClose={() => { setShowSettings(false); pause() }}
+                        onClose={() => setShowSettings(false)}
                     />
                 )}
 
