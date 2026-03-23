@@ -109,4 +109,10 @@ describe('gameReducer — point & victoire', () => {
         const next = gameReducer(state, { type: 'TICK', deltaTime: 0.016, keys: noKeys })
         expect(next.phase).toBe('scored')
     })
+
+    it('reprend la partie après un point via RESUME_AFTER_POINT', () => {
+        const state: GameState = { ...playingState(), phase: 'scored' }
+        const next = gameReducer(state, { type: 'RESUME_AFTER_POINT' })
+        expect(next.phase).toBe('playing')
+    })
 })
