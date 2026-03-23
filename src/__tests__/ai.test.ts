@@ -26,22 +26,22 @@ describe('computeAIDirection', () => {
         expect(dir).toBeCloseTo(-0.95)
     })
 
-    it('ne prédit pas si la balle est trop loin (easy, x < 400)', () => {
+    it('ne prédit pas si la balle est trop loin (easy, x < 550)', () => {
         vi.spyOn(Math, 'random').mockReturnValue(0.5) // offset = (0.5*2 - 1) = 0
         const paddle = createPaddleRight() // centre à 250
-        const ball = makeBall(100, 450, 300, 0) // balle en bas à gauche
+        const ball = makeBall(500, 450, 300, 0) // balle encore au milieu (x < 550)
         const dir = computeAIDirection(paddle, ball, 1.0, 'easy')
         expect(dir).toBe(0)
         vi.restoreAllMocks()
     })
 
-    it('prédit si la balle est proche (easy, x > 400)', () => {
+    it('prédit si la balle est proche (easy, x > 550)', () => {
         vi.spyOn(Math, 'random').mockReturnValue(0.5)
         const paddle = createPaddleRight()
-        const ball = makeBall(500, 450, 300, 0) // balle en bas à droite
-        const dir = computeAIDirection(paddle, ball, 1.0, 'easy')
-        // Doit descendre (> 0)
-        expect(dir).toBeGreaterThan(0)
+        const ball = makeBall(600, 450, 300, 0) // balle est proche (x > 550)
+        const dir = computeAIDirection(paddle, ball, 1.1, 'easy') // dt > delay (1.0)
+        // Doit descendre (> 0) avec REACTION_SPEED (0.28)
+        expect(dir).toBeCloseTo(0.28)
         vi.restoreAllMocks()
     })
 
