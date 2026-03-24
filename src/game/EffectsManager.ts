@@ -28,20 +28,32 @@ export class EffectsManager {
 
     // ── Traînée ────────────────────────────────────────────────────────────────
 
+    // ── Traînée ────────────────────────────────────────────────────────────────
+
     private createTrail() {
         this.trail = this.scene.add.renderTexture(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
         this.trail.setDepth(-1)
         // Graphics hors-scène utilisé uniquement pour dessiner dans la RenderTexture
-        this.trailGfx = this.scene.make.graphics({ x: 0, y: 0, add: false })
+        this.trailGfx = this.scene.make.graphics({ x: 0, y: 0 }, false)
     }
 
-    updateTrail(ball: Phaser.GameObjects.Rectangle) {
-        // Fondu progressif — efface les positions passées
+    /**
+     * Applique le fondu progressif sur la traînée (appelé une fois par frame)
+     */
+    preUpdateTrail() {
         this.trail.fill(0x0a0a0a, 0.35)
+    }
 
-        // Dessine un carré blanc à la position de la balle via Graphics dédié
+    /**
+     * Dessine une entité dans la traînée
+     * @param ball L'objet à dessiner
+     * @param alpha Intensité de la traînée (0 à 1)
+     */
+    drawBallTrail(ball: Phaser.GameObjects.Rectangle, alpha: number = 0.5) {
+        if (alpha <= 0) return
+
         this.trailGfx.clear()
-        this.trailGfx.fillStyle(0xffffff, 0.5)
+        this.trailGfx.fillStyle(0xffffff, alpha)
         this.trailGfx.fillRect(
             ball.x - ball.width / 2,
             ball.y - ball.height / 2,
@@ -114,7 +126,6 @@ export class EffectsManager {
         if (this.scene.renderer.type !== Phaser.WEBGL) return
 
         try {
-            // @ts-expect-error — postFX disponible en WebGL
             ball.postFX?.addGlow(0xffffff, 4, 0, false, 0.1, 8)
         } catch {
             // Silencieux si le pipeline n'est pas disponible
@@ -124,7 +135,6 @@ export class EffectsManager {
     applyPaddleGlow(paddle: Phaser.GameObjects.Rectangle) {
         if (this.scene.renderer.type !== Phaser.WEBGL) return
         try {
-            // @ts-expect-error
             paddle.postFX?.addGlow(0xffffff, 3, 0, false, 0.1, 6)
         } catch { /* silencieux */ }
     }

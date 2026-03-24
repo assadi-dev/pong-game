@@ -336,7 +336,6 @@ export class GameScene extends Phaser.Scene {
 
         this.audio.playSfx('score')
         this.effects.playScoreExplosion(this.ballGO.x, this.ballGO.y)
-        this.effects.clearTrail()
         this.ballBody.setVelocity(0, 0)
         this.ballGO.setPosition(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2)
 
@@ -413,9 +412,6 @@ export class GameScene extends Phaser.Scene {
             const dir = computeAIDirection(fakePaddle, fakeBall, delta / 1000, this.state.difficulty)
             this.paddleRightBody.setVelocityY(dir * PADDLE_SPEED)
         }
-
-        // ── Traînée balle
-        this.effects.updateTrail(this.ballGO)
 
         // ── Rebond mur haut/bas — son ─────────────────────────────────────────────
         const vy = this.ballBody.velocity.y
