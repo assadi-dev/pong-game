@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { CANVAS_WIDTH, CANVAS_HEIGHT, BALL_SIZE } from '../utils/constants'
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../utils/constants'
 
 /**
  * EffectsManager — gère tous les effets visuels Phaser :

@@ -9,7 +9,7 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from './utils/constants'
 export default function App() {
   const {
     state, audioState,
-    start, pause, reset, setMode,
+    start, pause, reset,
     setVolume, toggleMute,
   } = usePhaserBridge()
 
