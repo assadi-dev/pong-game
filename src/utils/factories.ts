@@ -71,5 +71,7 @@ export function createInitialState(): GameState {
         paddleRight: createPaddleRight(),
         winningScore: WINNING_SCORE,
         winner: null,
+        gameMode: 'solo',
+        difficulty: 'medium',
     }
 }

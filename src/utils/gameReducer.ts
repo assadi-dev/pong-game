@@ -1,5 +1,5 @@
 import type { GameState, GameAction } from '../types/game.types'
-import { createBall, createPaddleLeft, createPaddleRight, createInitialState } from './factories'
+import { createBall, createInitialState } from './factories'
 import { moveBall, bounceWalls, movePaddle } from './physics'
 import { collideBallPaddleLeft, collideBallPaddleRight, detectPoint } from './collisions'
 import { directionLeft, directionRight } from './input'
