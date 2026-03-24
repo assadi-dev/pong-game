@@ -1,15 +1,36 @@
 import { usePhaserBridge } from './hooks/usePhaserBridge'
+import { EventBus } from './game/EventBus'
 import { PhaserContainer } from './components/PhaserContainer'
 import { HUD } from './components/HUD'
 import { MenuScreen } from './components/MenuScreen'
 import { SettingsModal } from './components/SettingsModal'
 import { useMusic } from './hooks/useMusic'
+import { useAudio } from './hooks/useAudio'
 import { useState, useEffect, useRef } from 'react'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './utils/constants'
 
 export default function App() {
   const { state, start, pause, reset, setMode } = usePhaserBridge()
   const music = useMusic()
+  const { play: playSfx } = useAudio()
+
+  // Sons depuis Phaser via EventBus
+  useEffect(() => {
+    const onPaddle = () => playSfx('paddle')
+    const onWall = () => playSfx('wall')
+    const onScore = () => playSfx('score')
+    const onWin = () => playSfx('win')
+    EventBus.on('sfx-paddle', onPaddle)
+    EventBus.on('sfx-wall', onWall)
+    EventBus.on('sfx-score', onScore)
+    EventBus.on('sfx-win', onWin)
+    return () => {
+      EventBus.off('sfx-paddle', onPaddle)
+      EventBus.off('sfx-wall', onWall)
+      EventBus.off('sfx-score', onScore)
+      EventBus.off('sfx-win', onWin)
+    }
+  }, [playSfx])
   const [showSettings, setShowSettings] = useState(false)
   const prevPhaseRef = useRef(state.phase)
 
