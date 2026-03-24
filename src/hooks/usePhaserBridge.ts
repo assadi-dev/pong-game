@@ -3,6 +3,10 @@ import { EventBus } from '../game/EventBus'
 import type { SceneState } from '../game/scenes/GameScene'
 import type { GameMode, Difficulty } from '../types/game.types'
 
+type AudioState = { muted: boolean; volume: number }
+
+const initialAudio: AudioState = { muted: false, volume: 0.45 }
+
 const initialState: SceneState = {
   phase: 'menu',
   scoreLeft: 0,
@@ -20,6 +24,7 @@ const initialState: SceneState = {
  */
 export function usePhaserBridge() {
   const [state, setState] = useState<SceneState>(initialState)
+  const [audioState, setAudioState] = useState<AudioState>(initialAudio)
 
   // Écoute les mises à jour d'état depuis la scène
   useEffect(() => {
@@ -27,8 +32,13 @@ export function usePhaserBridge() {
       setState({ ...newState })
     }
 
+    const onAudioState = (a: AudioState) => setAudioState({ ...a })
     EventBus.on('state-update', onStateUpdate)
-    return () => { EventBus.off('state-update', onStateUpdate) }
+    EventBus.on('audio-state', onAudioState)
+    return () => {
+      EventBus.off('state-update', onStateUpdate)
+      EventBus.off('audio-state', onAudioState)
+    }
   }, [])
 
   // Commandes React → Phaser
@@ -49,5 +59,13 @@ export function usePhaserBridge() {
     EventBus.emit('cmd-set-mode', { gameMode, difficulty })
   }, [])
 
-  return { state, start, pause, reset, setMode }
+  const setVolume = useCallback((volume: number) => {
+    EventBus.emit('cmd-audio-volume', { volume })
+  }, [])
+
+  const toggleMute = useCallback(() => {
+    EventBus.emit('cmd-audio-mute')
+  }, [])
+
+  return { state, audioState, start, pause, reset, setMode, setVolume, toggleMute }
 }

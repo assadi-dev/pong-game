@@ -1,49 +1,20 @@
+import { useState, useEffect, useRef } from 'react'
 import { usePhaserBridge } from './hooks/usePhaserBridge'
-import { EventBus } from './game/EventBus'
 import { PhaserContainer } from './components/PhaserContainer'
 import { HUD } from './components/HUD'
 import { MenuScreen } from './components/MenuScreen'
 import { SettingsModal } from './components/SettingsModal'
-import { useMusic } from './hooks/useMusic'
-import { useAudio } from './hooks/useAudio'
-import { useState, useEffect, useRef } from 'react'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './utils/constants'
 
 export default function App() {
-  const { state, start, pause, reset, setMode } = usePhaserBridge()
-  const music = useMusic()
-  const { play: playSfx } = useAudio()
+  const {
+    state, audioState,
+    start, pause, reset, setMode,
+    setVolume, toggleMute,
+  } = usePhaserBridge()
 
-  // Sons depuis Phaser via EventBus
-  useEffect(() => {
-    const onPaddle = () => playSfx('paddle')
-    const onWall = () => playSfx('wall')
-    const onScore = () => playSfx('score')
-    const onWin = () => playSfx('win')
-    EventBus.on('sfx-paddle', onPaddle)
-    EventBus.on('sfx-wall', onWall)
-    EventBus.on('sfx-score', onScore)
-    EventBus.on('sfx-win', onWin)
-    return () => {
-      EventBus.off('sfx-paddle', onPaddle)
-      EventBus.off('sfx-wall', onWall)
-      EventBus.off('sfx-score', onScore)
-      EventBus.off('sfx-win', onWin)
-    }
-  }, [playSfx])
   const [showSettings, setShowSettings] = useState(false)
   const prevPhaseRef = useRef(state.phase)
-
-  // Réactions musique aux transitions de phase
-  useEffect(() => {
-    const prev = prevPhaseRef.current
-    const curr = state.phase
-    if (prev === 'menu' && curr === 'playing') { music.play(); music.fadeIn(600) }
-    if (curr === 'paused' && prev === 'playing') music.fadeOut(400)
-    if (curr === 'playing' && prev === 'paused') music.fadeIn(400)
-    if (curr === 'gameover' && prev !== 'gameover') music.fadeOut(1800)
-    prevPhaseRef.current = curr
-  }, [state.phase, music])
 
   // Pause auto quand settings ouvert
   useEffect(() => {
@@ -61,6 +32,11 @@ export default function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [pause, showSettings])
+
+  // Suivi de phase pour les transitions
+  useEffect(() => {
+    prevPhaseRef.current = state.phase
+  }, [state.phase])
 
   return (
     <div style={{
@@ -82,14 +58,12 @@ export default function App() {
                 paddleLeft: { position: { x: 0, y: 0 }, width: 0, height: 0, score: state.scoreLeft },
                 paddleRight: { position: { x: 0, y: 0 }, width: 0, height: 0, score: state.scoreRight },
                 ball: { position: { x: 0, y: 0 }, velocity: { x: 0, y: 0 }, size: 0 },
-                winningScore: 7,
-                winner: state.winner,
-                gameMode: state.gameMode,
-                difficulty: state.difficulty,
+                winningScore: 7, winner: state.winner,
+                gameMode: state.gameMode, difficulty: state.difficulty,
               }}
               onPause={pause}
-              musicMuted={music.muted}
-              onMusicMute={music.toggleMute}
+              musicMuted={audioState.muted}
+              onMusicMute={toggleMute}
               onSettings={() => setShowSettings(true)}
             />
           </div>
@@ -99,10 +73,10 @@ export default function App() {
         {showSettings && (
           <div style={{ position: 'absolute', inset: 0 }}>
             <SettingsModal
-              musicVolume={music.volume}
-              musicMuted={music.muted}
-              onMusicVolume={music.setVolume}
-              onMusicMute={music.toggleMute}
+              musicVolume={audioState.volume}
+              musicMuted={audioState.muted}
+              onMusicVolume={setVolume}
+              onMusicMute={toggleMute}
               onClose={() => setShowSettings(false)}
             />
           </div>
@@ -112,12 +86,12 @@ export default function App() {
         {state.phase === 'menu' && (
           <Overlay>
             <MenuScreen
-              musicMuted={music.muted}
-              musicVolume={music.volume}
-              onMusicMute={music.toggleMute}
-              onMusicVolume={music.setVolume}
+              musicMuted={audioState.muted}
+              musicVolume={audioState.volume}
+              onMusicMute={toggleMute}
+              onMusicVolume={setVolume}
               onSettings={() => setShowSettings(true)}
-              onStart={(mode, diff) => { music.init(); start(mode, diff) }}
+              onStart={(mode, diff) => start(mode, diff)}
             />
           </Overlay>
         )}
@@ -128,7 +102,7 @@ export default function App() {
             <BigTitle>PAUSE</BigTitle>
             <PrimaryButton onClick={pause}>Reprendre</PrimaryButton>
             <SecondaryButton onClick={() => setShowSettings(true)}>⚙ Paramètres</SecondaryButton>
-            <SecondaryButton onClick={() => { reset(); music.fadeOut(400) }}>Quitter</SecondaryButton>
+            <SecondaryButton onClick={reset}>Quitter</SecondaryButton>
           </Overlay>
         )}
 
@@ -137,7 +111,7 @@ export default function App() {
           <Overlay>
             <BigTitle>{state.winner === 'left' ? 'Joueur 1' : 'Joueur 2'} gagne !</BigTitle>
             <FinalScore>{state.scoreLeft} — {state.scoreRight}</FinalScore>
-            <PrimaryButton onClick={() => { start(state.gameMode, state.difficulty); music.fadeIn(600) }}>
+            <PrimaryButton onClick={() => start(state.gameMode, state.difficulty)}>
               Rejouer
             </PrimaryButton>
             <SecondaryButton onClick={reset}>Menu</SecondaryButton>
@@ -145,14 +119,17 @@ export default function App() {
         )}
       </div>
 
-      <p style={{ color: 'rgba(255,255,255,0.15)', fontFamily: 'monospace', fontSize: '11px', marginTop: '10px' }}>
+      <p style={{
+        color: 'rgba(255,255,255,0.15)',
+        fontFamily: 'monospace', fontSize: '11px', marginTop: '10px',
+      }}>
         Echap pour pause
       </p>
     </div>
   )
 }
 
-// ─── UI helpers ───────────────────────────────────────────────────────────────
+// ─── UI helpers ────────────────────────────────────────────────────────────────
 
 function Overlay({ children }: { children: React.ReactNode }) {
   return (
@@ -169,11 +146,25 @@ function Overlay({ children }: { children: React.ReactNode }) {
 }
 
 function BigTitle({ children }: { children: React.ReactNode }) {
-  return <h1 style={{ color: '#fff', fontFamily: 'monospace', fontSize: '52px', margin: '0 0 8px', letterSpacing: '8px' }}>{children}</h1>
+  return (
+    <h1 style={{
+      color: '#fff', fontFamily: 'monospace',
+      fontSize: '52px', margin: '0 0 8px', letterSpacing: '8px',
+    }}>
+      {children}
+    </h1>
+  )
 }
 
 function FinalScore({ children }: { children: React.ReactNode }) {
-  return <p style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'monospace', fontSize: '36px', margin: 0 }}>{children}</p>
+  return (
+    <p style={{
+      color: 'rgba(255,255,255,0.55)',
+      fontFamily: 'monospace', fontSize: '36px', margin: 0,
+    }}>
+      {children}
+    </p>
+  )
 }
 
 function PrimaryButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
@@ -182,9 +173,11 @@ function PrimaryButton({ children, onClick }: { children: React.ReactNode; onCli
       marginTop: '8px', padding: '10px 36px',
       background: '#ffffff', color: '#0a0a0a',
       border: 'none', borderRadius: '4px',
-      fontFamily: 'monospace', fontSize: '15px', fontWeight: 'bold',
-      cursor: 'pointer', letterSpacing: '3px',
-    }}>{children}</button>
+      fontFamily: 'monospace', fontSize: '15px',
+      fontWeight: 'bold', cursor: 'pointer', letterSpacing: '3px',
+    }}>
+      {children}
+    </button>
   )
 }
 
@@ -195,6 +188,8 @@ function SecondaryButton({ children, onClick }: { children: React.ReactNode; onC
       background: 'transparent', color: 'rgba(255,255,255,0.35)',
       border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px',
       fontFamily: 'monospace', fontSize: '13px', cursor: 'pointer',
-    }}>{children}</button>
+    }}>
+      {children}
+    </button>
   )
 }
