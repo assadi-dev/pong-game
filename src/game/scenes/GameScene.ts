@@ -180,15 +180,18 @@ export class GameScene extends Phaser.Scene {
     private onBallHitPaddleLeft() {
         const relHit = (this.ballGO.y - this.paddleLeftGO.y) / (PADDLE_HEIGHT / 2)
         const angle = relHit * (35 * Math.PI / 180)
-        const speed = Math.min(
+        const baseSpeed = Math.min(
             Math.sqrt(this.ballBody.velocity.x ** 2 + this.ballBody.velocity.y ** 2) + BALL_SPEED_INC,
             BALL_SPEED_MAX,
         )
+        // Spin : la vitesse Y de la raquette dévie la trajectoire de la balle
+        const paddleVy = this.paddleLeftBody.velocity.y
+        const spin = paddleVy * 0.25  // facteur de spin — ajustable
+        const newVy = Math.sin(angle) * baseSpeed + spin
         this.ballBody.setVelocity(
-            Math.cos(angle) * speed,        // toujours vers la droite
-            Math.sin(angle) * speed,
+            Math.cos(angle) * baseSpeed,    // toujours vers la droite
+            newVy,
         )
-        // Repositionne hors de la raquette
         this.ballGO.x = this.paddleLeftGO.x + PADDLE_WIDTH / 2 + BALL_SIZE / 2 + 1
         this.effects.playFlash('right')
         this.tweens.add({
@@ -203,13 +206,17 @@ export class GameScene extends Phaser.Scene {
     private onBallHitPaddleRight() {
         const relHit = (this.ballGO.y - this.paddleRightGO.y) / (PADDLE_HEIGHT / 2)
         const angle = relHit * (35 * Math.PI / 180)
-        const speed = Math.min(
+        const baseSpeed = Math.min(
             Math.sqrt(this.ballBody.velocity.x ** 2 + this.ballBody.velocity.y ** 2) + BALL_SPEED_INC,
             BALL_SPEED_MAX,
         )
+        // Spin : la vitesse Y de la raquette dévie la trajectoire de la balle
+        const paddleVy = this.paddleRightBody.velocity.y
+        const spin = paddleVy * 0.25
+        const newVy = Math.sin(angle) * baseSpeed + spin
         this.ballBody.setVelocity(
-            -Math.cos(angle) * speed,       // toujours vers la gauche
-            Math.sin(angle) * speed,
+            -Math.cos(angle) * baseSpeed,   // toujours vers la gauche
+            newVy,
         )
         this.ballGO.x = this.paddleRightGO.x - PADDLE_WIDTH / 2 - BALL_SIZE / 2 - 1
         this.effects.playFlash('left')
