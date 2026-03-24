@@ -4,13 +4,10 @@ Jeu de Pong complet développé en React + TypeScript avec Canvas 2D, Web Audio 
  
 ## Stack technique
  
-- **React 18** + **TypeScript** (strict)
+- **React 19** + **TypeScript** (strict)
 - **Vite** — bundler et dev server
-- **Canvas 2D API** — rendu du jeu
-- **Web Audio API** — sons synthétiques (aucun fichier audio)
-- **Vitest** — tests unitaires et d'intégration
- 
-Aucune librairie de game engine — tout est implémenté from scratch.
+- **Phaser 3** — moteur de jeu
+- **Vitest** — tests unitaires
  
 ## Lancer le projet
  
