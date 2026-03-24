@@ -67,3 +67,15 @@ export type KeysPressed = {
     ArrowUp: boolean
     ArrowDown: boolean
 }
+
+// ─── Types de remapping ───────────────────────────────────────────────────────
+
+export type PlayerControls = {
+    up: string   // ex: 'W', 'ArrowUp', 'Z'...
+    down: string
+}
+
+export type ControlsConfig = {
+    player1: PlayerControls
+    player2: PlayerControls
+}
