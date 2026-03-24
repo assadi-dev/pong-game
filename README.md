@@ -43,3 +43,16 @@ pnpm vitest run    # tests en mode CI (une seule passe)
  
 L'IA prédit la trajectoire de la balle en simulant les rebonds sur les murs plutôt que de simplement suivre la balle.
  
+## 🚀 Jouer en ligne
+
+Prêt à relever le défi ? Lancez une partie directement dans votre navigateur :
+
+<div align="center">
+  <br />
+  <a href="https://pong-game-app-hlkcbb-ba2a6c-212-227-194-86.traefik.me/">
+    <img src="https://img.shields.io/badge/JOUER_À_PONG-CLIQUEZ_ICI-blue?style=for-the-badge&logo=gamepad&logoColor=white" alt="Lien du site web" />
+  </a>
+  <br />
+  <br />
+  <img src="https://img.shields.io/badge/Déployé_avec-Dokploy-6366f1?style=flat-square&logo=docker&logoColor=white" alt="Deployé avec Dokploy" />
+</div>
