@@ -14,6 +14,7 @@ import {
     WINNING_SCORE,
 } from '../../utils/constants'
 import { computeAIDirection } from '../../utils/ai'
+import { EffectsManager } from '../EffectsManager'
 import type { GamePhase, GameMode, Difficulty } from '../../types/game.types'
 
 // ─── Types internes ────────────────────────────────────────────────────────────
@@ -59,6 +60,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     private scoredTimer = 0
+    private effects!: EffectsManager
 
     constructor() {
         super({ key: 'GameScene' })
@@ -74,6 +76,12 @@ export class GameScene extends Phaser.Scene {
         this.createBall()
         this.setupCollisions()
         this.setupInputs()
+
+        // Effets visuels
+        this.effects = new EffectsManager(this)
+        this.effects.init(this.ballGO)
+        this.effects.applyPaddleGlow(this.paddleLeftGO)
+        this.effects.applyPaddleGlow(this.paddleRightGO)
 
         EventBus.emit('scene-ready', this)
 
@@ -175,6 +183,13 @@ export class GameScene extends Phaser.Scene {
         )
         // Repositionne hors de la raquette
         this.ballGO.x = this.paddleLeftGO.x + PADDLE_WIDTH / 2 + BALL_SIZE / 2 + 1
+        this.effects.playFlash('right')
+        this.tweens.add({
+            targets: this.paddleLeftGO,
+            scaleX: { from: 1.3, to: 1 },
+            duration: 120,
+            ease: 'Back.easeOut',
+        })
         EventBus.emit('sfx-paddle')
     }
 
@@ -190,6 +205,13 @@ export class GameScene extends Phaser.Scene {
             Math.sin(angle) * speed,
         )
         this.ballGO.x = this.paddleRightGO.x - PADDLE_WIDTH / 2 - BALL_SIZE / 2 - 1
+        this.effects.playFlash('left')
+        this.tweens.add({
+            targets: this.paddleRightGO,
+            scaleX: { from: 1.3, to: 1 },
+            duration: 120,
+            ease: 'Back.easeOut',
+        })
         EventBus.emit('sfx-paddle')
     }
 
@@ -283,6 +305,8 @@ export class GameScene extends Phaser.Scene {
         else this.state.scoreRight++
 
         EventBus.emit('sfx-score')
+        this.effects.playScoreExplosion(this.ballGO.x, this.ballGO.y)
+        this.effects.clearTrail()
         this.ballBody.setVelocity(0, 0)
         this.ballGO.setPosition(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2)
 
@@ -359,6 +383,9 @@ export class GameScene extends Phaser.Scene {
             const dir = computeAIDirection(fakePaddle, fakeBall, delta / 1000, this.state.difficulty)
             this.paddleRightBody.setVelocityY(dir * PADDLE_SPEED)
         }
+
+        // ── Traînée balle
+        this.effects.updateTrail(this.ballGO)
 
         // ── Rebond mur haut/bas — son ─────────────────────────────────────────────
         const vy = this.ballBody.velocity.y

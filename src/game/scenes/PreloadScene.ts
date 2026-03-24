@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { generateTextures } from '../TextureFactory'
 import { EventBus } from '../EventBus'
 
 /**
@@ -27,6 +28,7 @@ export class PreloadScene extends Phaser.Scene {
     }
 
     create() {
+        generateTextures(this)
         EventBus.emit('load-complete')
         this.scene.start('GameScene')
     }
