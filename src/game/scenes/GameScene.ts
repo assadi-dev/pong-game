@@ -15,6 +15,7 @@ import {
 } from '../../utils/constants'
 import { computeAIDirection } from '../../utils/ai'
 import { EffectsManager } from '../EffectsManager'
+import { AudioManager } from '../AudioManager'
 import type { GamePhase, GameMode, Difficulty } from '../../types/game.types'
 
 // ─── Types internes ────────────────────────────────────────────────────────────
@@ -61,6 +62,7 @@ export class GameScene extends Phaser.Scene {
 
     private scoredTimer = 0
     private effects!: EffectsManager
+    protected audio!: AudioManager
 
     constructor() {
         super({ key: 'GameScene' })
@@ -77,6 +79,9 @@ export class GameScene extends Phaser.Scene {
         this.setupCollisions()
         this.setupInputs()
 
+        // Audio — initMusic() est appelé au premier play() après unlock()
+        this.audio = new AudioManager(this)
+
         // Effets visuels
         this.effects = new EffectsManager(this)
         this.effects.init(this.ballGO)
@@ -86,6 +91,8 @@ export class GameScene extends Phaser.Scene {
         EventBus.emit('scene-ready', this)
 
         EventBus.on('cmd-start', this.onStart, this)
+        EventBus.on('cmd-audio-volume', this.onAudioVolume, this)
+        EventBus.on('cmd-audio-mute', this.onAudioMute, this)
         EventBus.on('cmd-pause', this.onPause, this)
         EventBus.on('cmd-resume', this.onResume, this)
         EventBus.on('cmd-reset', this.onReset, this)
@@ -190,7 +197,7 @@ export class GameScene extends Phaser.Scene {
             duration: 120,
             ease: 'Back.easeOut',
         })
-        EventBus.emit('sfx-paddle')
+        this.audio.playSfx('paddle')
     }
 
     private onBallHitPaddleRight() {
@@ -212,7 +219,7 @@ export class GameScene extends Phaser.Scene {
             duration: 120,
             ease: 'Back.easeOut',
         })
-        EventBus.emit('sfx-paddle')
+        this.audio.playSfx('paddle')
     }
 
     // ── Inputs ────────────────────────────────────────────────────────────────────
@@ -247,12 +254,16 @@ export class GameScene extends Phaser.Scene {
         }
         this.resetPositions()
         this.launchBall()
+        // unlock() + play() sont async — appelés en fire & forget
+        // le contexte audio est débloqué ici car onStart vient d'un clic utilisateur
+        this.audio.play().then(() => this.audio.fadeIn(600)).catch(() => { })
         this.emitState()
     }
 
     protected onPause() {
         if (this.state.phase !== 'playing') return
         this.ballBody.setVelocity(0, 0)
+        this.audio.fadeOut(400)
         this.state = { ...this.state, phase: 'paused' }
         this.emitState()
     }
@@ -260,12 +271,14 @@ export class GameScene extends Phaser.Scene {
     protected onResume() {
         if (this.state.phase !== 'paused') return
         this.launchBall()
+        this.audio.fadeIn(400)
         this.state = { ...this.state, phase: 'playing' }
         this.emitState()
     }
 
     protected onReset() {
         this.ballBody.setVelocity(0, 0)
+        this.audio.fadeOut(400)
         this.state = {
             phase: 'menu', scoreLeft: 0, scoreRight: 0,
             winner: null, gameMode: 'pvp', difficulty: 'medium',
@@ -276,6 +289,23 @@ export class GameScene extends Phaser.Scene {
 
     protected onSetMode(payload: { gameMode: GameMode; difficulty: Difficulty }) {
         this.state = { ...this.state, ...payload }
+    }
+
+    protected onAudioVolume(payload: { volume: number }) {
+        this.audio.setVolume(payload.volume)
+        this.emitAudioState()
+    }
+
+    protected onAudioMute() {
+        this.audio.toggleMute()
+        this.emitAudioState()
+    }
+
+    protected emitAudioState() {
+        EventBus.emit('audio-state', {
+            muted: this.audio.getMuted(),
+            volume: this.audio.getVolume(),
+        })
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -304,7 +334,7 @@ export class GameScene extends Phaser.Scene {
         if (scorer === 'left') this.state.scoreLeft++
         else this.state.scoreRight++
 
-        EventBus.emit('sfx-score')
+        this.audio.playSfx('score')
         this.effects.playScoreExplosion(this.ballGO.x, this.ballGO.y)
         this.effects.clearTrail()
         this.ballBody.setVelocity(0, 0)
@@ -320,7 +350,7 @@ export class GameScene extends Phaser.Scene {
                 winner: this.state.scoreLeft >= WINNING_SCORE ? 'left' : 'right',
             }
             this.emitState()
-            EventBus.emit('sfx-win')
+            this.audio.playSfx('win')
             return
         }
 
@@ -393,7 +423,7 @@ export class GameScene extends Phaser.Scene {
             (this.ballGO.y <= BALL_SIZE / 2 && vy < 0) ||
             (this.ballGO.y >= CANVAS_HEIGHT - BALL_SIZE / 2 && vy > 0)
         ) {
-            EventBus.emit('sfx-wall')
+            this.audio.playSfx('wall')
         }
 
         // ── Détection point ───────────────────────────────────────────────────────
@@ -409,5 +439,7 @@ export class GameScene extends Phaser.Scene {
         EventBus.off('cmd-resume', this.onResume, this)
         EventBus.off('cmd-reset', this.onReset, this)
         EventBus.off('cmd-set-mode', this.onSetMode, this)
+        EventBus.off('cmd-audio-volume', this.onAudioVolume, this)
+        EventBus.off('cmd-audio-mute', this.onAudioMute, this)
     }
 }

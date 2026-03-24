@@ -11,6 +11,7 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT, BALL_SIZE } from '../utils/constants'
 export class EffectsManager {
     private scene: Phaser.Scene
     private trail!: Phaser.GameObjects.RenderTexture
+    private trailGfx!: Phaser.GameObjects.Graphics
     private flash!: Phaser.GameObjects.Rectangle
     private emitter!: Phaser.GameObjects.Particles.ParticleEmitter
 
@@ -28,17 +29,26 @@ export class EffectsManager {
     // ── Traînée ────────────────────────────────────────────────────────────────
 
     private createTrail() {
-        // RenderTexture de la taille du canvas — on y dessine chaque frame
         this.trail = this.scene.add.renderTexture(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
-        this.trail.setDepth(-1) // derrière toutes les entités
+        this.trail.setDepth(-1)
+        // Graphics hors-scène utilisé uniquement pour dessiner dans la RenderTexture
+        this.trailGfx = this.scene.make.graphics({ x: 0, y: 0, add: false })
     }
 
     updateTrail(ball: Phaser.GameObjects.Rectangle) {
-        // Fondu progressif de la texture existante (efface les vieilles positions)
+        // Fondu progressif — efface les positions passées
         this.trail.fill(0x0a0a0a, 0.35)
 
-        // Dessine la balle actuelle dans la texture avec opacité réduite
-        this.trail.draw(ball, ball.x, ball.y)
+        // Dessine un carré blanc à la position de la balle via Graphics dédié
+        this.trailGfx.clear()
+        this.trailGfx.fillStyle(0xffffff, 0.5)
+        this.trailGfx.fillRect(
+            ball.x - ball.width / 2,
+            ball.y - ball.height / 2,
+            ball.width,
+            ball.height,
+        )
+        this.trail.draw(this.trailGfx)
     }
 
     clearTrail() {

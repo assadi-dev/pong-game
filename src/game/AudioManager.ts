@@ -2,46 +2,63 @@ import Phaser from 'phaser'
 
 type SoundName = 'paddle' | 'wall' | 'score' | 'win'
 
-/**
- * AudioManager — génère tous les sons via Web Audio API
- * en passant par le contexte audio de Phaser.
- *
- * Avantages vs useAudio.ts :
- * - Partage le même AudioContext que Phaser
- * - Géré par le SoundManager (pause auto, volume global)
- * - Pas de drift entre sons et rendu
- */
 export class AudioManager {
-    private ctx: AudioContext
-    private masterGain: GainNode
+    private scene: Phaser.Scene
+    private ctx!: AudioContext
+    private masterGain!: GainNode
     private musicSource: Phaser.Sound.WebAudioSound | null = null
     private musicVolume = 0.45
     private muted = false
+    private unlocked = false
 
     constructor(scene: Phaser.Scene) {
-        // Récupère le contexte audio de Phaser
-        const webAudio = scene.sound as Phaser.Sound.WebAudioSoundManager
-        this.ctx = webAudio.context
+        this.scene = scene
+    }
 
-        // Gain master pour les SFX
+    // ── Déblocage contexte audio ───────────────────────────────────────────────
+
+    /**
+     * Doit être appelé après une interaction utilisateur (clic sur Jouer).
+     * Phaser suspend son AudioContext au démarrage — il faut le reprendre
+     * explicitement après le premier geste utilisateur.
+     */
+    async unlock(): Promise<void> {
+        if (this.unlocked) return
+
+        const soundManager = this.scene.sound as Phaser.Sound.WebAudioSoundManager
+
+        // Reprendre le contexte Phaser s'il est suspendu
+        if (soundManager.context?.state === 'suspended') {
+            await soundManager.context.resume()
+        }
+
+        this.ctx = soundManager.context
+
+        // Gain master SFX
         this.masterGain = this.ctx.createGain()
         this.masterGain.gain.value = 1
         this.masterGain.connect(this.ctx.destination)
+
+        this.unlocked = true
     }
 
     // ── Musique ────────────────────────────────────────────────────────────────
 
-    initMusic(scene: Phaser.Scene) {
-        if (!scene.cache.audio.exists('music')) return
+    initMusic() {
+        if (!this.scene.cache.audio.exists('music')) return
+        if (this.musicSource) return
 
-        this.musicSource = scene.sound.add('music', {
+        this.musicSource = this.scene.sound.add('music', {
             loop: true,
             volume: this.musicVolume,
         }) as Phaser.Sound.WebAudioSound
     }
 
-    play() {
+    async play() {
+        await this.unlock()
+        this.initMusic()
         if (!this.musicSource) return
+
         this.musicSource.seek = 0
         this.musicSource.setVolume(this.muted ? 0 : this.musicVolume)
         this.musicSource.play()
@@ -55,10 +72,10 @@ export class AudioManager {
         this.musicSource?.resume()
     }
 
-    fadeIn(scene: Phaser.Scene, durationMs = 600) {
+    fadeIn(durationMs = 600) {
         if (!this.musicSource || this.muted) return
         this.musicSource.setVolume(0)
-        scene.tweens.add({
+        this.scene.tweens.add({
             targets: this.musicSource,
             volume: this.musicVolume,
             duration: durationMs,
@@ -66,9 +83,9 @@ export class AudioManager {
         })
     }
 
-    fadeOut(scene: Phaser.Scene, durationMs = 1500) {
+    fadeOut(durationMs = 1500) {
         if (!this.musicSource) return
-        scene.tweens.add({
+        this.scene.tweens.add({
             targets: this.musicSource,
             volume: 0,
             duration: durationMs,
@@ -97,6 +114,7 @@ export class AudioManager {
     // ── SFX synthétiques ───────────────────────────────────────────────────────
 
     playSfx(name: SoundName) {
+        if (!this.unlocked || !this.ctx) return
         try {
             switch (name) {
                 case 'paddle': this.sfxPaddle(); break
